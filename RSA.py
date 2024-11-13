@@ -1,96 +1,85 @@
 import random
-from sympy import isprime
+from math import gcd
 
-# Function to generate keys for RSA
-def generate_keys(bits=8):
-    # Step 1: Choose two distinct prime numbers p and q
-    p = generate_prime(bits)
-    q = generate_prime(bits)
-    
-    # Step 2: Compute n = p * q
-    n = p * q
-    
-    # Step 3: Compute Euler's totient function phi(n) = (p-1) * (q-1)
-    phi_n = (p - 1) * (q - 1)
-    
-    # Step 4: Choose an integer e such that 1 < e < phi(n) and gcd(e, phi(n)) = 1
-    e = choose_e(phi_n)
-    
-    # Step 5: Compute d such that d * e ≡ 1 (mod phi(n))
-    d = mod_inverse(e, phi_n)
-    
-    # Public key is (e, n), private key is (d, n)
-    public_key = (e, n)
-    private_key = (d, n)
-    
-    return public_key, private_key
+# Function to find the modular inverse
+def mod_inverse(e, phi):
+    for d in range(1, phi):
+        if (e * d) % phi == 1:
+            return d
+    return None
+
+# Function to perform modular exponentiation
+def power(base, exponent, mod):
+    result = 1
+    base = base % mod
+    while exponent > 0:
+        if (exponent % 2) == 1:
+            result = (result * base) % mod
+        exponent = exponent >> 1
+        base = (base * base) % mod
+    return result
 
 # Function to check if a number is prime
-def generate_prime(bits):
-    while True:
-        prime_candidate = random.getrandbits(bits)
-        if isprime(prime_candidate):
-            return prime_candidate
+def is_prime(num):
+    if num < 2:
+        return False
+    for i in range(2, int(num**0.5) + 1):
+        if num % i == 0:
+            return False
+    return True
 
-# Function to choose a valid e
-def choose_e(phi_n):
-    e = random.randrange(2, phi_n)
-    while gcd(e, phi_n) != 1:
-        e = random.randrange(2, phi_n)
-    return e
+# Step 1: Get two large prime numbers from the user
+while True:
+    p = int(input("Enter a prime number (p): "))
+    if is_prime(p):
+        break
+    else:
+        print("Invalid input. Please enter a prime number.")
 
-# Function to compute gcd of two numbers
-def gcd(a, b):
-    while b:
-        a, b = b, a % b
-    return a
+while True:
+    q = int(input("Enter another prime number (q, different from p): "))
+    if is_prime(q) and q != p:
+        break
+    else:
+        print("Invalid input. Please enter a prime number different from p.")
 
-# Function to compute the modular inverse
-def mod_inverse(a, m):
-    m0, x0, x1 = m, 0, 1
-    if m == 1:
-        return 0
-    while a > 1:
-        q = a // m
-        m, a = a % m, m
-        x0, x1 = x1 - q * x0, x0
-    if x1 < 0:
-        x1 += m0
-    return x1
+# Step 2: Calculate n (p * q) and phi (Euler's totient function)
+n = p * q
+phi = (p - 1) * (q - 1)
 
-# Function to encrypt the message using the public key
-def encrypt(message, public_key):
-    e, n = public_key
-    # Convert message to integers
-    message_int = [ord(c) for c in message]
-    # Encrypt each character
-    ciphertext = [pow(m, e, n) for m in message_int]
-    return ciphertext
+# Step 3: Automatically select an integer e (1 < e < phi) that is coprime with phi
+while True:
+    e = random.randint(2, phi - 1)
+    if gcd(e, phi) == 1:
+        break
 
-# Function to decrypt the message using the private key
-def decrypt(ciphertext, private_key):
-    d, n = private_key
-    # Decrypt each character
-    decrypted_int = [pow(c, d, n) for c in ciphertext]
-    # Convert integers back to characters
-    message = ''.join(chr(i) for i in decrypted_int)
-    return message
+# Step 4: Calculate d, the modular inverse of e modulo phi
+d = mod_inverse(e, phi)
 
-# Main execution
-if __name__ == "__main__":
-    # Generate public and private keys
-    public_key, private_key = generate_keys(bits=8)  # 8-bit primes for simplicity
-    
-    print("Public Key:", public_key)
-    print("Private Key:", private_key)
-    
-    # Input message to encrypt
-    message = input("Enter the message to encrypt: ")
-    
-    # Encrypt the message
-    encrypted_message = encrypt(message, public_key)
-    print("Encrypted Message:", encrypted_message)
-    
-    # Decrypt the message
-    decrypted_message = decrypt(encrypted_message, private_key)
-    print("Decrypted Message:", decrypted_message)
+# Display the generated public and private keys
+print("\n--- RSA Key Generation ---")
+print("Public key (e, n):", (e, n))
+print("Private key (d, n):", (d, n))
+print("Prime numbers (p, q):", (p, q))
+
+# Function to encrypt a message
+def encrypt(message, e, n):
+    cipher = [power(ord(char), e, n) for char in message]
+    return ''.join(chr(c) for c in cipher)  # Return encrypted message as text
+
+# Function to decrypt a message
+def decrypt(cipher, d, n):
+    plain = [chr(power(ord(char), d, n)) for char in cipher]
+    return ''.join(plain)  # Return decrypted message as text
+
+# Test the RSA algorithm
+message = input("\nEnter the message to encrypt: ")
+
+# Ensure the message is in uppercase and only contains alphabetic characters (no special characters)
+message = message.upper()
+cipher_text = encrypt(message, e, n)
+
+print("Encrypted message:", cipher_text)
+
+decrypted_message = decrypt(cipher_text, d, n)
+print("Decrypted message:", decrypted_message)
